@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// A school subject the student is preparing for
+model Subject {
+  id        String         @id @default(cuid())
+  name      String
+  color     String         @default("#10b981")
+  examDate  DateTime? // date of the exam (UTC midnight)
+  examName  String?
+  topics    Topic[]
+  sessions  StudySession[]
+  createdAt DateTime       @default(now())
+}
+
+// A chapter / unit / topic inside a subject
+model Topic {
+  id          String    @id @default(cuid())
+  subjectId   String
+  subject     Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  name        String
+  difficulty  Int       @default(2) // 1 = Easy, 2 = Medium, 3 = Hard
+  status      String    @default("PENDING") // PENDING | COMPLETED
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  sessions    StudySession[]
+
+  @@index([subjectId])
+}
+
+// One study block placed on the timetable
+model StudySession {
+  id        String   @id @default(cuid())
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  topicId   String?
+  topic     Topic?   @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  topicName String // denormalized so history survives topic deletion
+  date      String // YYYY-MM-DD
+  startTime String // HH:MM (24h)
+  duration  Int // minutes
+  type      String   @default("LEARN") // LEARN | REVISE | PRACTICE
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([date])
+  @@index([subjectId])
+}
+
+// Single-row app settings for the study planner
+model Settings {
+  id            String @id @default("default")
+  dayStart      String @default("16:00") // study window start HH:MM
+  dayEnd        String @default("21:00") // study window end HH:MM
+  sessionLength Int    @default(45) // minutes per session
+  breakLength   Int    @default(10) // minutes break between sessions
+  studyDays     String @default("1,2,3,4,5,6") // weekdays planned, 0=Sun
+}
